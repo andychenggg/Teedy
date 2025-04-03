@@ -251,7 +251,11 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-site-plugin</artifactId>
-            <version>3.12.1</version> <!-- 可用最新版 -->
+            <version>3.12.1</version> <!-- 可根据需要调整版本 -->
+            <configuration>
+              <port>9000</port>
+              <tempWebappDirectory>${basedir}/</tempWebappDirectory>
+            </configuration>
           </plugin>
           <!-- Launch NPM & Grunt -->
           <plugin>
@@ -298,4 +302,12 @@
       </build>
     </profile>
   </profiles>
+
+  <distributionManagement>
+    <site>
+      <id>local-site</id>
+      <url>file://${project.build.directory}/staging-site/docs-web</url>
+    </site>
+  </distributionManagement>
+
 </project>

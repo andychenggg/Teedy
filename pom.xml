@@ -9,13 +9,13 @@
   <version>1.12-SNAPSHOT</version>
 
   <name>Docs Parent</name>
-
   <properties>
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <!-- Dependencies version (external) -->
+    <doxia.version>1.11.1</doxia.version>
     <org.apache.commons.commons-compress.version>1.22</org.apache.commons.commons-compress.version>
     <org.apache.commons.commons-lang3.version>3.12.0</org.apache.commons.commons-lang3.version>
     <commons-io.commons-io.version>2.11.0</commons-io.commons-io.version>
@@ -105,7 +105,10 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-site-plugin</artifactId>
         <version>3.12.1</version> <!-- 可根据需要调整版本 -->
-
+        <configuration>
+          <port>9000</port>
+          <tempWebappDirectory>${basedir}/</tempWebappDirectory>
+        </configuration>
       </plugin>
 
       <plugin>
@@ -167,6 +170,12 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.apache.maven.doxia</groupId>
+        <artifactId>doxia-sink-api</artifactId>
+        <version>${doxia.version}</version>
+      </dependency>
+
       <dependency>
         <groupId>com.sismics.docs</groupId>
         <artifactId>docs-core</artifactId>
@@ -531,4 +540,10 @@
     </dependencies>
   </dependencyManagement>
 
+  <distributionManagement>
+    <site>
+      <id>local-site</id>
+      <url>file://${project.basedir}/staging-site</url>
+    </site>
+  </distributionManagement>
 </project>
