@@ -24,13 +24,24 @@ pipeline {
     stage('Push to Docker Hub') {
       steps {
         script {
-          docker.withRegistry('', 'dockerhub_credentials') {
-            docker.image("${env.DOCKER_IMAGE}:${env.DOCKER_TAG}").push()
-            docker.image("${env.DOCKER_IMAGE}:${env.DOCKER_TAG}").push('latest')
+          try {
+            sh 'docker info'
+            echo "Attempting to login to Docker Hub as user: $DOCKER_HUB_CREDENTIALS_USR"
+            sh 'echo $DOCKER_HUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_CREDENTIALS_USR --password-stdin'
+            echo "Pushing image: ${env.DOCKER_IMAGE}:${env.DOCKER_TAG}"
+            sh "docker push ${env.DOCKER_IMAGE}:${env.DOCKER_TAG}"
+            sh "docker push ${env.DOCKER_IMAGE}:latest"
+          } catch (Exception e) {
+            echo "Error during Docker push: ${e.getMessage()}"
+            sh 'docker logout'
+            error "Failed to push Docker image"
+          } finally {
+            sh 'docker logout'
           }
         }
       }
     }
+
     stage('Run 3 Containers') {
       steps {
         script {
