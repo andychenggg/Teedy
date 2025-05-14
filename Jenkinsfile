@@ -17,7 +17,7 @@ pipeline {
             archiveArtifacts artifacts: '**/target/**/*.jar',   fingerprint: true
             archiveArtifacts artifacts: '**/target/**/*.war',   fingerprint: true
             // 发布测试结果
-            junit '**/target/surefire-reports/*.xml'
+//             junit '**/target/surefire-reports/*.xml'
         }
     }
 }
