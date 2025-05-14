@@ -84,6 +84,26 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.9</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-pmd-plugin</artifactId>
         <version>3.23.0</version> <!-- 使用合适的版本 -->
@@ -132,10 +152,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${org.apache.maven.plugins.maven-surefire-plugin.version}</version>
+        <version>3.0.0-M5</version>
         <configuration>
+          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
           <forkCount>1</forkCount>
           <reuseForks>false</reuseForks>
+          <useModulePath>false</useModulePath> <!-- 禁用模块路径，避免 JUnit 5 中的兼容问题 -->
         </configuration>
       </plugin>
 
@@ -170,6 +192,13 @@
 
   <dependencyManagement>
     <dependencies>
+      <!--      JUNIT-->
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>5.9.1</version>
+      </dependency>
+
       <dependency>
         <groupId>org.apache.maven.doxia</groupId>
         <artifactId>doxia-sink-api</artifactId>
