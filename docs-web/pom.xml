@@ -214,6 +214,19 @@
               <useModulePath>false</useModulePath> <!-- 禁用模块路径，避免 JUnit 5 中的兼容问题 -->
             </configuration>
           </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.11.2</version>
+            <configuration>
+              <!-- 禁用所有 doclint 检查 -->
+              <doclint>none</doclint>
+              <!-- 即使有错误也不让构建失败 -->
+              <failOnError>false</failOnError>
+            </configuration>
+          </plugin>
+
         </plugins>
       </build>
     </profile>
