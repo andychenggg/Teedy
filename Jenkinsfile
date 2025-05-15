@@ -1,8 +1,8 @@
 pipeline {
 agent any
 environment {
-DEPLOYMENT_NAME = "lab13-deployment"
-CONTAINER_NAME = "lab13-container"
+DEPLOYMENT_NAME = "hello-node"
+CONTAINER_NAME = "hello-node"
 IMAGE_NAME = "andycheng608/teedy2025_manual:latest"
 }
 stages {
