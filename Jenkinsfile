@@ -2,7 +2,7 @@ pipeline {
 agent any
 environment {
 DEPLOYMENT_NAME = "hello-node"
-CONTAINER_NAME = "hello-node"
+CONTAINER_NAME = "teedy2025-manual-nzpp7"
 IMAGE_NAME = "andycheng608/teedy2025_manual:latest"
 }
 stages {
