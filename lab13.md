@@ -9,13 +9,13 @@
     ```
 5. Use service in browser
     ```bash
-    minikube service hello-node
+    minikube service lab13-node
     ```
 6. clean up
    Remove the service and the deployment. Stop minicube.
     ```bash
-    kubectl delete service hello-node
-    kubectl delete deployment hello-node
+    kubectl delete service lab13-node
+    kubectl delete deployment lab13-node
     minikube stop
     ```
     If your don't use it again today, delete the virtual cluster.
