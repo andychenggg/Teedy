@@ -145,6 +145,18 @@ module.exports = function(grunt) {
         src: '../java/',
         dest: 'dist/apidoc/'
       }
+    },
+    watch: {
+      scripts: {
+        files: ['js/**/*.js', 'css/**/*.less', 'templates/**/*.html'],
+        tasks: ['default'],
+        options: { livereload: true }
+      }
+    },
+    connect: {
+      server: {
+        options: { livereload: true, port: 9000 }
+      }
     }
   });
 

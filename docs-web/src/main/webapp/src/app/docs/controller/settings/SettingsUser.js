@@ -17,7 +17,38 @@ angular.module('docs').controller('SettingsUser', function($scope, $state, Resta
   };
   
   $scope.loadUsers();
-  
+  /**
+   * Load users requests from server.
+   */
+  $scope.loadUsersRequests = function() {
+    Restangular.one('user/apply_list').get().then(
+        function (data) {
+          $scope.userReqs = data.userReqs;
+        }
+    )
+  };
+  $scope.loadUsersRequests();
+
+  /**
+   * Approve a user request.
+   */
+
+  $scope.approveUser = function(username) {
+    Restangular.one('user/approveUserReq').put({username: username}).then(function() {
+      $scope.loadUsersRequests();
+      $scope.loadUsers();
+    })
+  };
+  /**
+   * Reject a user request.
+   */
+  $scope.rejectUser = function(username) {
+    Restangular.one('user/rejectUserReq').put({username: username}).then(function() {
+      $scope.loadUsersRequests();
+    });
+  };
+
+
   /**
    * Edit a user.
    */

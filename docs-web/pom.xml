@@ -216,6 +216,23 @@
               </webApp>
             </configuration>
           </plugin>
+
+          <plugin>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-maven-plugin</artifactId>
+            <version>11.0.15</version>  <!-- 请对齐你项目中已有的版本 -->
+            <configuration>
+              <!-- 每隔 5 秒扫描一次目标目录，检测到 class 或资源文件变动就自动重载 -->
+              <scanIntervalSeconds>5</scanIntervalSeconds>
+              <!-- 自动在扫描到变化后重新部署上下文 -->
+              <reload>automatic</reload>
+              <!-- 指定 Web 应用的上下文路径和 war 目录 -->
+              <webApp>
+                <contextPath>/</contextPath>
+                <war>${project.build.directory}/${project.build.finalName}.war</war>
+              </webApp>
+            </configuration>
+          </plugin>
           
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>

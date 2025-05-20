@@ -23,3 +23,12 @@ mvn site
 mvn site:stage-deploy -DstagingDirectory=target/staging-site
 ```
 Recursively stage into specified area in `<distributionManagement>` in `pom.xml`
+
+
+
+## quick run server:
+```bash
+mvn clean install -Dpmd.skip=true -DskipTests
+cd docs-web
+mvn -Pprod jetty:run
+```

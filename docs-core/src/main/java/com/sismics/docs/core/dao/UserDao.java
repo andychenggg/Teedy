@@ -3,6 +3,7 @@ package com.sismics.docs.core.dao;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import at.favre.lib.crypto.bcrypt.BCrypt;
+import com.sismics.docs.core.model.jpa.UserReq;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,6 +92,101 @@ public class UserDao {
         AuditLogUtil.create(user, AuditLogType.CREATE, userId);
         
         return user.getId();
+    }
+
+    /**
+     * Creates a new userReq.
+     *
+     * @param userReq UserReq to create
+     * @return User ID
+     * @throws Exception e
+     */
+    public String createReq(UserReq userReq) throws Exception {
+        // Create the userReq UUID
+        userReq.setId(UUID.randomUUID().toString());
+        userReq.setStatus("PENDING");
+
+        // Checks for user unicity
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+        Query q = em.createQuery("select u from UserReq u where u.username = :username");
+        q.setParameter("username", userReq.getUsername());
+        List<?> l = q.getResultList();
+        if (l.size() > 0) {
+            throw new Exception("AlreadyExistingUsername");
+        }
+
+        // Create the user
+        userReq.setPassword(hashPassword(userReq.getPassword()));
+        em.persist(userReq);
+
+        // Create audit log
+        AuditLogUtil.create(userReq, AuditLogType.CREATE, userReq.getId());
+
+        return userReq.getId();
+    }
+
+    public String approveReq(String username, String userId) throws Exception {
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+
+        Query q = em.createQuery("select u from UserReq u where u.username = :username");
+        q.setParameter("username", username);
+        UserReq userReqDb = (UserReq) q.getSingleResult();
+        userReqDb.setStatus("APPROVED");
+
+
+        // create a user
+        User user = new User();
+        user.setId(UUID.randomUUID().toString());
+
+        // Checks for user unicity
+        Query q1 = em.createQuery("select u from User u where u.username = :username and u.deleteDate is null");
+        q1.setParameter("username", username);
+        List<?> l = q1.getResultList();
+        if (l.size() > 0) {
+            throw new Exception("AlreadyExistingUsername");
+        }
+
+        // Create the user
+        user.setRoleId(Constants.DEFAULT_USER_ROLE);
+        user.setUsername(username);
+        user.setEmail(userReqDb.getEmail());
+        user.setStorageQuota(userReqDb.getStorageQuota());
+        user.setOnboarding(true);
+        user.setCreateDate(new Date());
+
+        user.setPassword(userReqDb.getPassword());
+        user.setPrivateKey(EncryptionUtil.generatePrivateKey());
+        user.setStorageCurrent(0L);
+        em.persist(user);
+
+
+        // Create audit log
+        AuditLogUtil.create(userReqDb, AuditLogType.CREATE, userId);
+
+        return userId;
+    }
+
+    public String rejectReq(String username, String userId) throws Exception {
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+
+        Query q = em.createQuery("select u from UserReq u where u.username = :username");
+        q.setParameter("username", username);
+        UserReq userReqDb = (UserReq) q.getSingleResult();
+        userReqDb.setStatus("REJECTED");
+
+        // Create audit log
+        AuditLogUtil.create(userReqDb, AuditLogType.CREATE, userId);
+
+        return userId;
+    }
+
+    public List<UserReq> getAllReq() {
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+        Query q = em.createQuery("select u from UserReq u");
+        List<?> l = q.getResultList();
+        List<UserReq> results = new ArrayList<>();
+        l.forEach(o -> results.add((UserReq) o));
+        return results;
     }
     
     /**

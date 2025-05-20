@@ -15,6 +15,7 @@ import com.sismics.docs.core.event.FileDeletedAsyncEvent;
 import com.sismics.docs.core.event.PasswordLostEvent;
 import com.sismics.docs.core.model.context.AppContext;
 import com.sismics.docs.core.model.jpa.*;
+import com.sismics.docs.core.util.AuditLogUtil;
 import com.sismics.docs.core.util.ConfigUtil;
 import com.sismics.docs.core.util.RoutingUtil;
 import com.sismics.docs.core.util.authentication.AuthenticationUtil;
@@ -51,6 +52,74 @@ import java.util.Set;
  */
 @Path("/user")
 public class UserResource extends BaseResource {
+
+    @POST
+    @Path("createUserReq")
+    public Response createUserReq(
+        @FormParam("username") String username,
+        @FormParam("password") String password,
+        @FormParam("email") String email,
+        @FormParam("storage_quota") String storageQuotaStr) {
+        // Validate the input data
+        username = ValidationUtil.validateLength(username, "username", 3, 50);
+        ValidationUtil.validateUsername(username, "username");
+        password = ValidationUtil.validateLength(password, "password", 8, 50);
+        email = ValidationUtil.validateLength(email, "email", 1, 100);
+        Long storageQuota = ValidationUtil.validateLong(storageQuotaStr, "storage_quota");
+        ValidationUtil.validateEmail(email, "email");
+
+        // Create the user request
+        UserReq userReq = new UserReq();
+        userReq.setUsername(username);
+        userReq.setPassword(password);
+        userReq.setEmail(email);
+        userReq.setStorageQuota(storageQuota);
+
+
+        // Create the user request
+        UserDao userDao = new UserDao();
+        try {
+            userDao.createReq(userReq);
+            return Response.ok().build();
+        } catch (Exception e) {
+            throw new ServerException("UnknownError", "Unknown server error", e);
+        }
+    }
+
+    @PUT
+    @Path("approveUserReq")
+    public Response approveUserReq(@FormParam("username") String username) {
+        if (!authenticate()) {
+            throw new ForbiddenClientException();
+        }
+        checkBaseFunction(BaseFunction.ADMIN);
+
+        UserDao userDao = new UserDao();
+        try {
+            userDao.approveReq(username, principal.getId());
+            return Response.ok().build();
+        } catch (Exception e) {
+            throw new ServerException("UnknownError", "Unknown server error", e);
+        }
+    }
+
+    @PUT
+    @Path("rejectUserReq")
+    public Response rejectUserReq(@FormParam("username") String username) {
+        if (!authenticate()) {
+            throw new ForbiddenClientException();
+        }
+        checkBaseFunction(BaseFunction.ADMIN);
+        // Create the user request
+        UserDao userDao = new UserDao();
+        try {
+            userDao.rejectReq(username, principal.getId());
+            return Response.ok().build();
+        } catch (Exception e) {
+            throw new ServerException("UnknownError", "Unknown server error", e);
+        }
+    }
+
     /**
      * Creates a new user.
      *
@@ -752,6 +821,33 @@ public class UserResource extends BaseResource {
         
         JsonObjectBuilder response = Json.createObjectBuilder()
                 .add("users", users);
+        return Response.ok().entity(response.build()).build();
+    }
+
+
+    @GET
+    @Path("apply_list")
+    public Response getApplyList() {
+        if (!authenticate()) {
+            throw new ForbiddenClientException();
+        }
+
+        JsonArrayBuilder userReqs = Json.createArrayBuilder();
+
+        UserDao userDao = new UserDao();
+        List<UserReq> results = userDao.getAllReq();
+        for (UserReq userDto : results) {
+            userReqs.add(Json.createObjectBuilder()
+                    .add("id", userDto.getId())
+                    .add("username", userDto.getUsername())
+                    .add("email", userDto.getEmail())
+                    .add("status", userDto.getStatus())
+                    .add("storage_quota", userDto.getStorageQuota())
+            );
+        }
+
+        JsonObjectBuilder response = Json.createObjectBuilder()
+                .add("userReqs", userReqs);
         return Response.ok().entity(response.build()).build();
     }
     
