@@ -22,6 +22,9 @@ import java.util.UUID;
  * @author bgamard
  */
 public class FileDao {
+
+    private static final String TRANSLATION_ORIGIN = "ORIGIN";
+
     /**
      * Creates a new file.
      * 
@@ -31,7 +34,10 @@ public class FileDao {
      */
     public String create(File file, String userId) {
         // Create the UUID
-        file.setId(UUID.randomUUID().toString());
+        String uuid = UUID.randomUUID().toString();
+        file.setId(uuid);
+        file.setTranslation(TRANSLATION_ORIGIN);
+        file.setOriginId(uuid);
         
         // Create the file
         EntityManager em = ThreadLocalContext.get().getEntityManager();
@@ -43,6 +49,34 @@ public class FileDao {
         
         return file.getId();
     }
+
+    /**
+     * Creates a new file.
+     *
+     * @param file File
+     * @param userId User ID
+     * @return New ID
+     */
+    public String createTranslation(File file, String userId, String originId, String translation) {
+        // Create the UUID
+        String uuid = UUID.randomUUID().toString();
+        file.setId(uuid);
+        file.setTranslation(translation);
+
+        file.setOriginId(originId);
+
+        // Create the file
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+        file.setCreateDate(new Date());
+        em.persist(file);
+
+        // Create audit log
+        AuditLogUtil.create(file, AuditLogType.CREATE, userId);
+
+        return file.getId();
+    }
+
+
     
     /**
      * Returns the list of all files.
@@ -53,7 +87,8 @@ public class FileDao {
      */
     public List<File> findAll(int offset, int limit) {
         EntityManager em = ThreadLocalContext.get().getEntityManager();
-        TypedQuery<File> q = em.createQuery("select f from File f where f.deleteDate is null", File.class);
+        TypedQuery<File> q = em.createQuery("select f from File f where f.deleteDate is null and f.translation == :translation", File.class);
+        q.setParameter("translation", TRANSLATION_ORIGIN);
         q.setFirstResult(offset);
         q.setMaxResults(limit);
         return q.getResultList();
@@ -67,7 +102,8 @@ public class FileDao {
      */
     public List<File> findByUserId(String userId) {
         EntityManager em = ThreadLocalContext.get().getEntityManager();
-        TypedQuery<File> q = em.createQuery("select f from File f where f.userId = :userId and f.deleteDate is null", File.class);
+        TypedQuery<File> q = em.createQuery("select f from File f where f.userId = :userId and f.deleteDate is null and f.translation == :translation", File.class);
+        q.setParameter("translation", TRANSLATION_ORIGIN);
         q.setParameter("userId", userId);
         return q.getResultList();
     }
@@ -118,6 +154,18 @@ public class FileDao {
             return null;
         }
     }
+
+    public File getTransFile(String id, String translation) {
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+        TypedQuery<File> q = em.createQuery("select f from File f where f.originId = :id and f.translation = :translation and f.deleteDate is null", File.class);
+        q.setParameter("id", id);
+        q.setParameter("translation", translation);
+        try {
+            return q.getSingleResult();
+        } catch (NoResultException e) {
+            return null;
+        }
+    }
     
     /**
      * Deletes a file.
@@ -129,16 +177,18 @@ public class FileDao {
         EntityManager em = ThreadLocalContext.get().getEntityManager();
             
         // Get the file
-        TypedQuery<File> q = em.createQuery("select f from File f where f.id = :id and f.deleteDate is null", File.class);
+        TypedQuery<File> q = em.createQuery("select f from File f where f.originId = :id and f.deleteDate is null", File.class);
         q.setParameter("id", id);
-        File fileDb = q.getSingleResult();
+        List<?> fileDbs = q.getResultList();
         
         // Delete the file
         Date dateNow = new Date();
-        fileDb.setDeleteDate(dateNow);
-        
-        // Create audit log
-        AuditLogUtil.create(fileDb, AuditLogType.DELETE, userId);
+        fileDbs.forEach(e -> {
+            File fileDb = (File) e;
+            fileDb.setDeleteDate(dateNow);
+            // Create audit log
+            AuditLogUtil.create(fileDb, AuditLogType.DELETE, userId);
+        });
     }
     
     /**
@@ -163,6 +213,29 @@ public class FileDao {
         fileDb.setMimeType(file.getMimeType());
         fileDb.setVersionId(file.getVersionId());
         fileDb.setLatestVersion(file.isLatestVersion());
+        fileDb.setSize(file.getSize());
+
+        TypedQuery<File> delQ = em.createQuery("select f from File f where f.originId = :id and f.deleteDate is null and f.originId != f.id", File.class);
+        delQ.setParameter("id", file.getId());
+        List<?> fileDbs = delQ.getResultList();
+
+        // Delete the file
+        Date dateNow = new Date();
+        fileDbs.forEach(e -> {
+            File delFileDb = (File) e;
+            delFileDb.setDeleteDate(dateNow);
+        });
+
+        return file;
+    }
+
+    public File updateTranslationSize(File file) {
+        EntityManager em = ThreadLocalContext.get().getEntityManager();
+
+        // Get the file
+        TypedQuery<File> q = em.createQuery("select f from File f where f.id = :id and f.deleteDate is null", File.class);
+        q.setParameter("id", file.getId());
+        File fileDb = q.getSingleResult();
         fileDb.setSize(file.getSize());
 
         return file;
@@ -195,8 +268,9 @@ public class FileDao {
     public List<File> getByDocumentId(String userId, String documentId) {
         EntityManager em = ThreadLocalContext.get().getEntityManager();
         if (documentId == null) {
-            TypedQuery<File> q = em.createQuery("select f from File f where f.documentId is null and f.deleteDate is null and f.latestVersion = true and f.userId = :userId order by f.createDate asc", File.class);
+            TypedQuery<File> q = em.createQuery("select f from File f where f.documentId is null and f.deleteDate is null and f.latestVersion = true and f.userId = :userId and f.translation = :translation order by f.createDate asc", File.class);
             q.setParameter("userId", userId);
+            q.setParameter("translation", TRANSLATION_ORIGIN);
             return q.getResultList();
         } else {
             return getByDocumentsIds(Collections.singleton(documentId));
@@ -211,8 +285,9 @@ public class FileDao {
      */
     public List<File> getByDocumentsIds(Iterable<String> documentIds) {
         EntityManager em = ThreadLocalContext.get().getEntityManager();
-        TypedQuery<File> q = em.createQuery("select f from File f where f.documentId in :documentIds and f.latestVersion = true and f.deleteDate is null order by f.order asc", File.class);
+        TypedQuery<File> q = em.createQuery("select f from File f where f.documentId in :documentIds and f.latestVersion = true and f.deleteDate is null and f.translation = :translation order by f.order asc", File.class);
         q.setParameter("documentIds", documentIds);
+        q.setParameter("translation", TRANSLATION_ORIGIN);
         return q.getResultList();
     }
 
@@ -224,8 +299,9 @@ public class FileDao {
      */
     public Map<String, Long> countByDocumentsIds(Iterable<String> documentIds) {
         EntityManager em = ThreadLocalContext.get().getEntityManager();
-        Query q = em.createQuery("select f.documentId, count(*) from File f where f.documentId in :documentIds and f.latestVersion = true and f.deleteDate is null group by (f.documentId)");
+        Query q = em.createQuery("select f.documentId, count(*) from File f where f.documentId in :documentIds and f.latestVersion = true and f.deleteDate is null and f.translation = :translation group by (f.documentId)");
         q.setParameter("documentIds", documentIds);
+        q.setParameter("translation", TRANSLATION_ORIGIN);
         Map<String, Long> result = new HashMap<>();
         q.getResultList().forEach(o -> {
             Object[] resultLine = (Object[]) o;
@@ -242,15 +318,17 @@ public class FileDao {
      */
     public List<File> getByVersionId(String versionId) {
         EntityManager em = ThreadLocalContext.get().getEntityManager();
-        TypedQuery<File> q = em.createQuery("select f from File f where f.versionId = :versionId and f.deleteDate is null order by f.order asc", File.class);
+        TypedQuery<File> q = em.createQuery("select f from File f where f.versionId = :versionId and f.deleteDate is null and f.translation = :translation order by f.order asc", File.class);
         q.setParameter("versionId", versionId);
+        q.setParameter("translation", TRANSLATION_ORIGIN);
         return q.getResultList();
     }
 
     public List<File> getFilesWithUnknownSize(int limit) {
         EntityManager em = ThreadLocalContext.get().getEntityManager();
-        TypedQuery<File> q = em.createQuery("select f from File f where f.size = :size and f.deleteDate is null order by f.order asc", File.class);
+        TypedQuery<File> q = em.createQuery("select f from File f where f.size = :size and f.deleteDate is null and f.translation = :translation order by f.order asc", File.class);
         q.setParameter("size", File.UNKNOWN_SIZE);
+        q.setParameter("translation", TRANSLATION_ORIGIN);
         q.setMaxResults(limit);
         return q.getResultList();
     }

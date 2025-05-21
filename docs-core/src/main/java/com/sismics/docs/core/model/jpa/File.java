@@ -21,6 +21,12 @@ public class File implements Loggable {
     @Id
     @Column(name = "FIL_ID_C", length = 36)
     private String id;
+
+    /**
+     * Original file ID.
+     */
+    @Column(name = "FIL_IDORIGIN_C", length = 36)
+    private String originId;
     
     /**
      * Document ID.
@@ -95,6 +101,13 @@ public class File implements Loggable {
      */
     @Column(name = "FIL_SIZE_N", nullable = false)
     private Long size;
+
+    /**
+     * Translation
+     */
+    @Column(name = "FIL_TRANSLATION_C", nullable = false)
+    private String translation;
+
 
     /**
      * Private key to decrypt the file.
@@ -249,5 +262,21 @@ public class File implements Loggable {
             return def + "." + MimeTypeUtil.getFileExtension(mimeType);
         }
         return name;
+    }
+
+    public String getTranslation() {
+        return translation;
+    }
+
+    public void setTranslation(String translation) {
+        this.translation = translation;
+    }
+
+    public String getOriginId() {
+        return originId;
+    }
+
+    public void setOriginId(String originId) {
+        this.originId = originId;
     }
 }

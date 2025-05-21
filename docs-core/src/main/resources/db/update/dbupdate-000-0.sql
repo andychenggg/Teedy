@@ -1,7 +1,7 @@
 !H2!SET IGNORECASE TRUE;
 create memory table T_AUTHENTICATION_TOKEN ( AUT_ID_C varchar(36) not null, AUT_IDUSER_C varchar(36) not null, AUT_LONGLASTED_B bit not null, AUT_CREATIONDATE_D datetime not null, AUT_LASTCONNECTIONDATE_D datetime, AUT_IP_C varchar(45), AUT_UA_C varchar(1000), primary key (AUT_ID_C) );
 create memory table T_BASE_FUNCTION ( BAF_ID_C varchar(20) not null, primary key (BAF_ID_C) );
-create cached table T_FILE ( FIL_ID_C varchar(36) not null, FIL_IDDOC_C varchar(36), FIL_IDUSER_C varchar(36) not null, FIL_MIMETYPE_C varchar(100) not null, FIL_CREATEDATE_D datetime, FIL_DELETEDATE_D datetime, FIL_ORDER_N int, FIL_CONTENT_C longvarchar, primary key (FIL_ID_C) );
+create cached table T_FILE ( FIL_ID_C varchar(36) not null, FIL_IDORIGIN_C varchar(36), FIL_IDDOC_C varchar(36), FIL_IDUSER_C varchar(36) not null, FIL_MIMETYPE_C varchar(100) not null, FIL_CREATEDATE_D datetime, FIL_DELETEDATE_D datetime, FIL_ORDER_N int, FIL_CONTENT_C longvarchar, FIL_TRANSLATION_C varchar(20) not null, primary key (FIL_ID_C) );
 create memory table T_CONFIG ( CFG_ID_C varchar(50) not null, CFG_VALUE_C varchar(250) not null, primary key (CFG_ID_C) );
 create memory table T_LOCALE ( LOC_ID_C varchar(10) not null, primary key (LOC_ID_C) );
 create cached table T_DOCUMENT ( DOC_ID_C varchar(36) not null, DOC_IDUSER_C varchar(36) not null, DOC_TITLE_C varchar(100) not null, DOC_DESCRIPTION_C varchar(4000), DOC_CREATEDATE_D datetime, DOC_DELETEDATE_D datetime, DOC_LANGUAGE_C varchar(3) default 'fra' not null, primary key (DOC_ID_C) );
@@ -44,6 +44,3 @@ insert into T_ROLE(ROL_ID_C, ROL_NAME_C, ROL_CREATEDATE_D) values('user', 'User'
 insert into T_ROLE_BASE_FUNCTION(RBF_ID_C, RBF_IDROLE_C, RBF_IDBASEFUNCTION_C, RBF_CREATEDATE_D) values('admin_ADMIN', 'admin', 'ADMIN', NOW());
 insert into T_USER(USE_ID_C, USE_IDLOCALE_C, USE_IDROLE_C, USE_USERNAME_C, USE_PASSWORD_C, USE_EMAIL_C, USE_THEME_C, USE_FIRSTCONNECTION_B, USE_CREATEDATE_D, USE_PRIVATEKEY_C) values('admin', 'en', 'admin', 'admin', '$2y$10$xg0EEKVUehutDI1m6qQhVeFz7SMQMl1jQzjf2KkVsR2c7aV2vyyjK', 'admin@localhost', 'default.less', true, NOW(), 'AdminPk');
 
-insert into T_USER_REQUEST(USE_ID_C, USE_USERNAME_C, USE_PASSWORD_C, USE_EMAIL_C, USE_STATUS_C) values('testAdmin', 'testAdmin', '$2y$10$xg0EEKVUehutDI1m6qQhVeFz7SMQMl1jQzjf2KkVsR2c7aV2vyyjK', 'testAdmin@localhost', 'PENDING');
-insert into T_USER_REQUEST(USE_ID_C, USE_USERNAME_C, USE_PASSWORD_C, USE_EMAIL_C, USE_STATUS_C) values('testAdmin2', 'testAdmin2', '$2y$10$xg0EEKVUehutDI1m6qQhVeFz7SMQMl1jQzjf2KkVsR2c7aV2vyyjK', 'testAdmin2@localhost', 'REJECTED');
-insert into T_USER_REQUEST(USE_ID_C, USE_USERNAME_C, USE_PASSWORD_C, USE_EMAIL_C, USE_STATUS_C) values('testAdmin3', 'testAdmin3', '$2y$10$xg0EEKVUehutDI1m6qQhVeFz7SMQMl1jQzjf2KkVsR2c7aV2vyyjK', 'testAdmin3@localhost', 'PENDING');

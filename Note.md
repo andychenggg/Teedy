@@ -30,5 +30,5 @@ Recursively stage into specified area in `<distributionManagement>` in `pom.xml`
 ```bash
 mvn clean install -Dpmd.skip=true -DskipTests
 cd docs-web
-mvn -Pprod jetty:run
+mvn -Pprod jetty:run -Djetty.jvmArgs="-Dapple.awt.UIElement=true"
 ```

@@ -3,13 +3,14 @@
 /**
  * File modal view controller.
  */
-angular.module('docs').controller('FileModalView', function ($uibModalInstance, $scope, $state, $stateParams, $sce, Restangular, $transitions) {
+angular.module('docs').controller('FileModalView', function ($uibModalInstance, $scope, $state, $stateParams, $sce, Restangular, $transitions, $translate) {
   var setFile = function (files) {
     // Search current file
     _.each(files, function (value) {
       if (value.id === $stateParams.fileId) {
         $scope.file = value;
         $scope.trustedFileUrl = $sce.trustAsResourceUrl('../api/file/' + $stateParams.fileId + '/data');
+        // console.error('../api/file/' + $stateParams.fileId + '/data');
       }
     });
   };
@@ -18,6 +19,9 @@ angular.module('docs').controller('FileModalView', function ($uibModalInstance, 
   Restangular.one('file/list').get({ id: $stateParams.id }).then(function (data) {
     $scope.files = data.files;
     setFile(data.files);
+    $scope.isTranslated      = false;
+    $scope.originalFileUrl   = $scope.trustedFileUrl
+    $scope.translatedFileUrl = null;
 
     // File not found, maybe it's a version
     if (!$scope.file) {
@@ -26,6 +30,43 @@ angular.module('docs').controller('FileModalView', function ($uibModalInstance, 
       });
     }
   });
+
+  const deeplLangMap = {
+    "en":     'EN-GB',   // 或者 'EN-US'
+    "fr":     'FR',
+    "de":     'DE',
+    "it":     'IT',
+    "es":     'ES',
+    "pt":     'PT-PT',   // 欧洲葡萄牙语，若你需要巴西葡萄牙语用 'PT-BR'
+    "el":     'EL',
+    "ru":     'RU',
+    "pl":     'PL',
+    'zh_CN':'ZH',      // 简体中文，可选 'ZH-HANS'
+    'zh_TW':'ZH-HANT' // 繁体中文
+  };
+  console.error($translate.use());
+  console.error(deeplLangMap[$translate.use()]);
+
+  $scope.toggleTranslate = function() {
+
+    if (!$scope.isTranslated) {
+      Restangular.all('/file/translateFile').post( {
+        fileId: $stateParams.fileId,
+        targetLang: deeplLangMap[$translate.use()]
+      }).then(function(data) {
+        $scope.translatedFileUrl = $sce.trustAsResourceUrl('../api/file/' + data.fileId + '/data');
+        $scope.trustedFileUrl    = $scope.translatedFileUrl;
+        $scope.isTranslated      = true;
+      }, function(err){
+        alert("翻译失败：" + err.data.message);
+      });
+    } else {
+      // 恢复原文
+      $scope.trustedFileUrl = $scope.originalFileUrl;
+      $scope.isTranslated   = false;
+    }
+  };
+
 
   /**
    * Return the next file.

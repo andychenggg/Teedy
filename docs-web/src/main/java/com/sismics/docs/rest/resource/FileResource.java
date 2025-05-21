@@ -10,6 +10,7 @@ import com.sismics.docs.core.dao.FileDao;
 import com.sismics.docs.core.dao.UserDao;
 import com.sismics.docs.core.dao.dto.DocumentDto;
 import com.sismics.docs.core.event.DocumentUpdatedAsyncEvent;
+import com.sismics.docs.core.event.FileCreatedAsyncEvent;
 import com.sismics.docs.core.event.FileDeletedAsyncEvent;
 import com.sismics.docs.core.event.FileUpdatedAsyncEvent;
 import com.sismics.docs.core.model.context.AppContext;
@@ -27,6 +28,10 @@ import com.sismics.util.HttpUtil;
 import com.sismics.util.JsonUtil;
 import com.sismics.util.context.ThreadLocalContext;
 import com.sismics.util.mime.MimeType;
+import com.deepl.api.DeepLClient;
+import com.deepl.api.DocumentHandle;
+import com.deepl.api.DocumentTranslationException;
+import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
@@ -39,6 +44,9 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.StreamingOutput;
+
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
@@ -49,6 +57,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -437,6 +446,111 @@ public class FileResource extends BaseResource {
                 .add("files", files);
 
         return Response.ok().entity(response.build()).build();
+    }
+
+    @POST
+    @Path("translateFile")
+    public Response translateFile(
+            @FormParam("fileId") String fileId,
+            @FormParam("targetLang") String targetLang
+    ){
+        System.err.println("translateFile");
+        if (!authenticate()) {
+            throw new ForbiddenClientException();
+        }
+
+        FileDao fileDao = new FileDao();
+        File fileDb = fileDao.getTransFile(fileId, targetLang);
+        if (fileDb != null) {
+            // 如果已经翻译过了，直接返回
+            JsonObjectBuilder response = Json.createObjectBuilder().add("fileId", fileDb.getId());
+            return Response.ok(response.build()).build();
+        }
+        File originFileDb = fileDao.getFile(fileId, principal.getId());
+        UserDao userDao = new UserDao();
+        User user = userDao.getById(principal.getId());
+
+
+        try {
+            // 1. 构造 DeepL 客户端
+            DeepLClient client = new DeepLClient("0c038a9d-4945-4c71-ad67-01820cfdd7df:fx");
+
+            java.nio.file.Path storedOriginal = DirectoryUtil
+                    .getStorageDirectory()
+                    .resolve(fileId);
+
+            InputStream fileInputStream = EncryptionUtil.decryptInputStream(
+                    Files.newInputStream(storedOriginal), user.getPrivateKey()
+            );
+
+            java.nio.file.Path target = AppContext.getInstance().getFileService()
+                    .createTemporaryFile(fileId + ".pdf");
+            Files.copy(fileInputStream, target, StandardCopyOption.REPLACE_EXISTING);
+            java.io.File inputPdf = target.toFile();
+
+
+            // 4. 生成一个临时文件，DeepL 会输出到这里
+            // Prepare the file
+            File file = new File();
+            file.setOrder(originFileDb.getOrder());
+            file.setVersion(originFileDb.getVersion());
+            file.setLatestVersion(originFileDb.isLatestVersion());
+            file.setName(originFileDb.getName());
+            file.setMimeType(originFileDb.getMimeType());
+            file.setUserId(originFileDb.getUserId());
+            file.setSize(0L);
+
+            System.err.println("here1");
+            System.err.println(DirectoryUtil.getBaseDataDirectory());
+            System.err.println(DirectoryUtil.getDbDirectory());
+            System.err.println("here1");
+            String transFileId = fileDao.createTranslation(file, originFileDb.getUserId(), originFileDb.getOriginId(), targetLang);
+
+            java.nio.file.Path translatedPath = AppContext.getInstance().getFileService().createTemporaryFile(transFileId + ".pdf");
+            java.io.File translatedPdf = translatedPath.toFile();
+            if (translatedPdf.exists()) {
+                boolean deleteOrNot = translatedPdf.delete();
+                System.err.println(deleteOrNot);
+            }
+            System.err.println("here2");
+            client.translateDocument(inputPdf, translatedPdf, null, targetLang);
+            System.err.println("here3");
+            Cipher cipher = EncryptionUtil.getEncryptionCipher(user.getPrivateKey());
+            java.nio.file.Path path = DirectoryUtil.getStorageDirectory().resolve(transFileId);
+            try (InputStream inputStream = Files.newInputStream(translatedPdf.toPath())) {
+                Files.copy(new CipherInputStream(inputStream, cipher), path);
+            }
+            System.err.println("here4");
+            // Update the user quota
+            user.setStorageCurrent(user.getStorageCurrent() + Files.size(translatedPath));
+            userDao.updateQuota(user);
+            file.setSize(Files.size(translatedPath));
+            fileDao.updateTranslationSize(file);
+
+
+            // 6. 返回给前端
+            JsonObjectBuilder response = Json.createObjectBuilder().add("fileId", transFileId);
+            return Response.ok(response.build()).build();
+
+        } catch (DocumentTranslationException ex) {
+            // DeepL 文档翻译过程中如果上传后翻译失败，会抛出此异常
+            System.err.println(ex.getMessage());
+            DocumentHandle handle = ex.getHandle();
+            JsonObjectBuilder response = Json.createObjectBuilder()
+                    .add("error", "DeepL translation failed")
+                    .add("documentId", handle.getDocumentId())
+                    .add("documentKey", handle.getDocumentKey())
+                    .add("message", ex.getMessage());
+            return Response.status(500)
+                    .entity(response.build()).build();
+        } catch (Exception ioe) {
+            System.err.println(ioe.getMessage());
+            JsonObjectBuilder response = Json.createObjectBuilder()
+                    .add("error", "IO error")
+                    .add("message", ioe.getMessage());
+            return Response.status(500)
+                    .entity(response.build()).build();
+        }
     }
 
     /**
